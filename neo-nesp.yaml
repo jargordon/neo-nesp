@@ -6,16 +6,16 @@ substitutions:
   ip: 10.0.80.75
 
   # Home Assistant entities you want to control with nESP
-  climate_entity: climate.climate_control
+  climate_entity: climate.house_heating
   zone_1_entity: cover.zone_1_downstairs
   zone_2_entity: cover.zone_2_upstairs
 
   # Home Assistant weather/info entities
-  weather_entity: weather.bom_melbourne
+  weather_entity: weather.met_office_tyn_y_rhos_hall_daily
   weather_feels_like_entity: sensor.bom_melbourne_temp_feels_like
-  weather_high_entity: sensor.bom_melbourne_temp_max_0
-  weather_low_entity: sensor.bom_melbourne_temp_min_0
-  weather_rain_chance_entity: sensor.bom_melbourne_rain_chance_0
+  weather_high_entity: sensor.today_max
+  weather_low_entity: sensor.lowtemp
+  weather_rain_chance_entity: sensor.today_rain
   zone_1_temperature_entity: sensor.xiaomi_temp_1_temperature
   zone_1_humidity_entity: sensor.xiaomi_temp_1_humidity
   zone_2_temperature_entity: sensor.xiaomi_temp_2_temperature
