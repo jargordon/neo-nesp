@@ -3,7 +3,6 @@ substitutions:
   hostname: 'neo-nesp'
   device_name: 'neo_nesp'
   device_description: 'WT32S3-21S ZX2D10GE01R-V4848 rotary switch screen'
-  ip: 10.0.80.75
 
   # Home Assistant entities you want to control with nESP
   climate_entity: climate.house_heating
@@ -20,15 +19,6 @@ substitutions:
   zone_1_humidity_entity: sensor.xiaomi_temp_1_humidity
   zone_2_temperature_entity: sensor.xiaomi_temp_2_temperature
   zone_2_humidity_entity: sensor.xiaomi_temp_2_humidity
-
-external_components:
-  - source: github://pr#7472
-    components: [ lvgl ]
-  - source:
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: dev
-    components: [ st7701s ]
 
 esphome:
   name: ${hostname}
@@ -388,32 +378,6 @@ text_sensor:
             id(set_mode_off).execute();
           } else if (x.compare("heat") == 0) {
             id(set_mode_heat).execute();
-          } else if (x.compare("cool") == 0) {
-            id(set_mode_cool).execute();
-          } else if (x.compare("fan_only") == 0) {
-            id(set_mode_fan).execute();
-          } else if (x.compare("dry") == 0) {
-            id(set_mode_dry).execute();
-          } else if (x.compare("heat_cool") == 0) {
-            id(set_mode_heat_cool).execute();
-          }
-
-  ### HASS - HVAC FAN SPEED
-  - platform: homeassistant
-    entity_id: ${climate_entity}
-    id: fan_mode
-    attribute: fan_mode
-    internal: true
-    on_value:
-      - lambda: |-
-          if (x.compare("auto") == 0) {
-            id(set_fan_auto).execute();
-          } else if (x.compare("low") == 0) {
-            id(set_fan_low).execute();
-          } else if (x.compare("medium") == 0) {
-            id(set_fan_medium).execute();
-          } else if (x.compare("high") == 0) {
-            id(set_fan_high).execute();
           }
 
   ### HASS - HVAC PRESET
@@ -432,30 +396,6 @@ text_sensor:
             id(set_preset_comfort).execute();
           } else if (x.compare("boost") == 0) {
             id(set_preset_boost).execute();
-          }
-
-    ### HASS - ZONES
-  - platform: homeassistant
-    entity_id: ${zone_1_entity}
-    id: zone_1
-    internal: true
-    on_value:
-      - lambda: |-
-          if (x.compare("open") == 0) {
-            id(set_zone_1).execute();
-          } else if (x.compare("closed") == 0) {
-            id(unset_zone_1).execute();
-          }
-  - platform: homeassistant
-    entity_id: ${zone_2_entity}
-    id: zone_2
-    internal: true
-    on_value:
-      - lambda: |-
-          if (x.compare("open") == 0) {
-            id(set_zone_2).execute();
-          } else if (x.compare("closed") == 0) {
-            id(unset_zone_2).execute();
           }
 
   ### HASS - BoM weather
@@ -661,4 +601,3 @@ display:
       #
 
 <<: !include _neo-nesp_UI.yaml
-
