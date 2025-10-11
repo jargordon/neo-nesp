@@ -6,19 +6,15 @@ substitutions:
 
   # Home Assistant entities you want to control with nESP
   climate_entity: climate.house_heating
-  zone_1_entity: cover.zone_1_downstairs
-  zone_2_entity: cover.zone_2_upstairs
+  heating_timetoday: sensor.heating_on_today
 
   # Home Assistant weather/info entities
-  weather_entity: weather.met_office_tyn_y_rhos_hall_daily
+  weather_entity: weather.met_office_tyn_y_rhos_hall
+  weather_icon_entity: sensor.tyn_y_rhos_hall_weather_3_hourly
   weather_feels_like_entity: sensor.bom_melbourne_temp_feels_like
   weather_high_entity: sensor.today_max
   weather_low_entity: sensor.lowtemp
   weather_rain_chance_entity: sensor.today_rain
-  zone_1_temperature_entity: sensor.xiaomi_temp_1_temperature
-  zone_1_humidity_entity: sensor.xiaomi_temp_1_humidity
-  zone_2_temperature_entity: sensor.xiaomi_temp_2_temperature
-  zone_2_humidity_entity: sensor.xiaomi_temp_2_humidity
 
 esphome:
   name: ${hostname}
@@ -76,7 +72,7 @@ light:
     id: rgb_ring
     pin: 4
     num_leds: 13
-    rmt_channel: 0
+    #rmt_channel: 0
     rgb_order: GRB
     chipset: WS2812
 
@@ -98,6 +94,7 @@ switch:
     internal: true
     turn_on_action:
       - logger.log: "Starting Antiburn"
+      - script.stop: idle_screen_timer # stop idle timer while antiburn active
       - light.turn_off: backlight
       - if:
           condition: lvgl.is_paused
@@ -117,6 +114,7 @@ switch:
             - delay: 1s
             - lvgl.pause:
       - light.turn_on: backlight
+      - script.execute: idle_screen_timer # restart idle timer when antiburn stops
 
 time:
   - platform: homeassistant
@@ -153,6 +151,8 @@ binary_sensor:
       #     id: vibrate
       #     length_ms: 10
       - light.turn_on: backlight
+      - script.stop: idle_screen_timer # stop idle timer on button press
+      - script.execute: idle_screen_timer # restart idle timer on button press
       - if:
           condition: lvgl.is_paused
           then:
@@ -193,6 +193,8 @@ sensor:
       inverted: true
       mode: INPUT
     on_value:
+      - script.stop: idle_screen_timer # stop idle timer on rotary turn
+      - script.execute: idle_screen_timer # restart idle timer on rotary turn
       - light.turn_on: backlight
       - if:
           condition:
@@ -333,38 +335,14 @@ sensor:
     internal: true
     on_value:
       - script.execute: update_weather_forecast_label
-
-  ### HASS - Zone 1 temperature
+  
+  ### HASS - Heating time today
   - platform: homeassistant
-    entity_id: ${zone_1_temperature_entity}
-    id: zone_1_temp
+    entity_id: ${heating_timetoday}
+    id: heating_time_today
     internal: true
     on_value:
-      - script.execute: update_menu_zone_temp_label
-
-  ### HASS - Zone 1 humidity
-  - platform: homeassistant
-    entity_id: ${zone_1_humidity_entity}
-    id: zone_1_humidity
-    internal: true
-    on_value:
-      - script.execute: update_menu_zone_temp_label
-
-  ### HASS - Zone 2 temperature
-  - platform: homeassistant
-    entity_id: ${zone_2_temperature_entity}
-    id: zone_2_temp
-    internal: true
-    on_value:
-      - script.execute: update_menu_zone_temp_label
-
-  ### HASS - Zone 2 humidity
-  - platform: homeassistant
-    entity_id: ${zone_2_humidity_entity}
-    id: zone_2_humidity
-    internal: true
-    on_value:
-      - script.execute: update_menu_zone_temp_label
+      - script.execute: update_heatingtime_label
 
 text_sensor:
   ### HASS - HVAC MODE
@@ -406,7 +384,7 @@ text_sensor:
 
   ### HASS - BoM icon
   - platform: homeassistant
-    entity_id: ${weather_entity}
+    entity_id: ${weather_icon_entity}
     id: bom_icon
     attribute: icon
     internal: true

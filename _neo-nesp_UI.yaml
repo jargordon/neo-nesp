@@ -312,27 +312,13 @@ lvgl:
             hidden: true
             align: CENTER
             y: 70 
-            text: " "
+            text: "forecast"
         - label:
             id: weather_feels_like_label
             hidden: true
             align: CENTER
             y: 130
             text: " "
-        - label:
-            id: zone_1_label
-            align: CENTER
-            x: -15
-            y: 90
-            text_color: graydarker
-            text: "\U000F0D80"
-        - label:
-            id: zone_2_label
-            align: CENTER
-            x: 15
-            y: 90
-            text_color: graydarker
-            text: "\U000F0D81"
         - label:
             id: current_temp_label
             align: CENTER
@@ -347,8 +333,6 @@ lvgl:
             value: '"menu_page"'
         - script.execute: update_menu_date_label
         - lvgl.widget.enable:
-            - menu_zone_2_button
-            - menu_zone_1_button
             - menu_back_button
             - menu_power_button
             - menu_mode_button
@@ -356,8 +340,6 @@ lvgl:
         - lvgl.widget.focus: menu_power_button
       on_unload:
         - lvgl.widget.disable:
-            - menu_zone_2_button
-            - menu_zone_1_button
             - menu_back_button
             - menu_power_button
             - menu_mode_button
@@ -385,28 +367,14 @@ lvgl:
             y: -50
             text_align: LEFT
             text: "00°C"
-        - label:
-            id: menu_indoor_label
-            align: LEFT_MID
-            x: 30
-            y: -10
-            text_align: LEFT
-            text_color: graydark
-            text: "INDOOR"
-        - label:
-            id: menu_zone_icon_label
-            align: LEFT_MID
-            x: 30
-            y: 38
-            text_align: LEFT
-            text: "\U000F0D81\n\U000F0D80"
-        - label:
-            id: menu_zone_temp_label
-            align: LEFT_MID
-            x: 60
-            y: 35
-            text_align: LEFT
-            text: "00°C 00%H\n00°C 00%H"
+        # - label:
+        #     id: menu_indoor_label
+        #     align: LEFT_MID
+        #     x: 30
+        #     y: -10
+        #     text_align: LEFT
+        #     text_color: graydark
+        #     text: "INDOOR"
         - label:
             id: menu_heatingtime_label
             align: LEFT_MID
@@ -428,48 +396,6 @@ lvgl:
             x: 55
             text_font: roboto_med
             text_align: RIGHT
-        - button:
-            id: menu_zone_2_button
-            state:
-              disabled: true
-            x: 0
-            y: -210
-            styles: style_menu_button
-            widgets:
-              - label:
-                  styles: style_menu_button_label
-                  text: "\U000F0D81"
-            on_focus:
-              - lvgl.label.update:
-                  id: selected_menu_label
-                  text: "Upstairs\nZone"
-            on_press:
-              - homeassistant.action:
-                  action: cover.toggle
-                  data:
-                    entity_id: ${zone_2_entity}
-        - button:
-            id: menu_zone_1_button
-            state:
-              disabled: true
-            x: 105    # 210sin(30) clock coords
-            y: -182   # 210cos(30)
-            styles: style_menu_button
-            widgets:
-              - label:
-                  align: CENTER
-                  y: 3
-                  text_font: roboto_med
-                  text: "\U000F0D80"
-            on_focus:
-              - lvgl.label.update:
-                  id: selected_menu_label
-                  text: "Downstairs\nZone"
-            on_press:
-              - homeassistant.action:
-                  action: cover.toggle
-                  data:
-                    entity_id: ${zone_1_entity}
         - button:
             id: menu_back_button
             state:
@@ -762,7 +688,15 @@ script:
       - switch.turn_on: vibration
       - delay: !lambda return length_ms;
       - switch.turn_off: vibration
-
+  
+  # Idle screen timeout: turn off backlight after 10 minutes of inactivity
+  - id: idle_screen_timer
+    then:
+      - delay: 10min
+      - logger.log: "Idle timeout expired: turning off backlight"
+      - light.turn_off: backlight
+      - lvgl.pause:
+          show_snow: true
   # navigate to pages with animation
   - id: goto_main_page
     then:
@@ -800,14 +734,6 @@ script:
             static char buf[10];
             snprintf(buf, sizeof(buf), "%s %02d:%02d", day_names[now.day_of_week-1], now.hour, now.minute);
             return buf;
-  - id: update_menu_zone_temp_label
-    then:
-      - lvgl.label.update:
-          id: menu_zone_temp_label
-          text: 
-            format: "%.0f°C \U000F058E %.0f%%\n%.0f°C \U000F058E %.0f%%"
-            args: [ 'round(id(zone_2_temp).state)', 'round(id(zone_2_humidity).state)', 'round(id(zone_1_temp).state)', 'round(id(zone_1_humidity).state)' ]
-
   - id: set_mode_off
     then:
       - script.execute: hide_widgets
@@ -916,40 +842,6 @@ script:
           id: preset_boost_button
           text_color: red
 
-  # zone UI scripts
-  - id: set_zone_1
-    then:
-      - lvgl.label.update:
-          id: zone_1_label
-          text_color: white
-      - lvgl.widget.update:
-          id: menu_zone_1_button
-          text_color: white
-  - id: unset_zone_1
-    then:
-      - lvgl.label.update:
-          id: zone_1_label
-          text_color: graydark
-      - lvgl.widget.update:
-          id: menu_zone_1_button
-          text_color: graydark
-  - id: set_zone_2
-    then:
-      - lvgl.label.update:
-          id: zone_2_label
-          text_color: white
-      - lvgl.widget.update:
-          id: menu_zone_2_button
-          text_color: white
-  - id: unset_zone_2
-    then:
-      - lvgl.label.update:
-          id: zone_2_label
-          text_color: graydark
-      - lvgl.widget.update:
-          id: menu_zone_2_button
-          text_color: graydark
-
   # OFF mode weather UI scripts
   - id: update_weather_forecast_label
     then:
@@ -966,7 +858,17 @@ script:
             snprintf(buf, sizeof(buf), "\U000F0E03 %.0f°C  \U000F0597 %.0f%%", high, rain);
           }
           return buf;
-
+  - id: update_heatingtime_label
+    then:
+      - lvgl.label.update:
+          id: menu_heatingtime_value_label
+          text: !lambda |-
+            int total_minutes = round(id(heating_time_today).state * 60); // convert hours to minutes
+            int hours = total_minutes / 60;
+            int minutes = total_minutes % 60;
+            static char buf[16];
+            snprintf(buf, sizeof(buf), "%02dH %02dM", hours, minutes);
+            return buf;
   - id: show_widgets
     then:
       - lvgl.widget.show:
@@ -974,8 +876,6 @@ script:
         - set_temp_roller
         - celsius_label
         - current_temp_label
-        - zone_1_label
-        - zone_2_label
         - meter_ticks
         - mode_label
       - lvgl.widget.hide:
@@ -996,8 +896,7 @@ script:
         - set_temp_roller
         - celsius_label
         - current_temp_label
-        - zone_1_label
-        - zone_2_label
+
         - meter_ticks
         - mode_label
       - lvgl.widget.show:
