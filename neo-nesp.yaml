@@ -7,6 +7,8 @@ substitutions:
   # Home Assistant entities you want to control with nESP
   climate_entity: climate.house_heating
   heating_timetoday: sensor.heating_on_today
+  boost_input_boolean: input_boolean.heating_boost
+  boost_timer_entity: timer.heating_boost_timer
 
   # Home Assistant weather/info entities
   weather_entity: weather.met_office_tyn_y_rhos_hall
@@ -123,6 +125,7 @@ time:
       - seconds: 0
         then:
           - script.execute: update_menu_date_label
+          - script.execute: update_boost_timer_label   # <-- call update each minute
       - hours: 2,3,4,5
         minutes: 5
         seconds: 0
@@ -167,6 +170,20 @@ binary_sensor:
 
   - platform: status
     name: Status
+
+  # Add boost input as a HA-backed binary_sensor so ESPHome receives boolean states (on/off)
+  - platform: homeassistant
+    entity_id: ${boost_input_boolean}
+    id: boost_input
+    internal: true
+    # Reflect boost boolean changes in the UI by invoking the preset scripts
+    on_state:
+      - lambda: |-
+          if (x) {
+            id(set_preset_boost).execute();
+          } else {
+            id(set_preset_none).execute();
+          }
 
 button:
 - platform: restart
@@ -474,6 +491,30 @@ text_sensor:
     reset_reason:
       name: Reset Reason
       disabled_by_default: True
+
+  # Add HA timer remaining as a text_sensor so we can display it on the UI
+  - platform: homeassistant
+    entity_id: ${boost_timer_entity}
+    id: boost_timer_text
+    attribute: remaining
+    internal: true
+    on_value:
+      - lvgl.label.update:
+          id: boost_timer_label
+          text: !lambda |-
+            // x is a std::string containing the timer remaining (e.g. "00:10:00").
+            if (x.size() == 0) return std::string("");           // idle -> show nothing
+            return std::string("Boosting for ") + x;             // show human text + remaining
+
+  # Add HA timer finishes_at as a sensor attribute so we can compute remaining minutes
+  # and update the UI when it changes.
+  - platform: homeassistant
+    entity_id: ${boost_timer_entity}
+    id: boost_timer_finishes_at
+    attribute: finishes_at
+    internal: true
+    on_value:
+      - script.execute: update_boost_timer_label
 
 spi:
   ### DISPLAY

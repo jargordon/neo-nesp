@@ -320,6 +320,13 @@ lvgl:
             y: 130
             text: " "
         - label:
+            id: boost_timer_label                # moved: now placed before current_temp_label
+            align: CENTER
+            y: 70
+            text_font: roboto_reg
+            text_color: red
+            text: ""                             # default empty when no timer
+        - label:
             id: current_temp_label
             align: CENTER
             y: 120
@@ -655,6 +662,7 @@ lvgl:
             styles: style_menu_button
             widgets:
               - label:
+                  id: preset_boost_button_label     # <-- added id so we can target the icon color
                   styles: style_menu_button_label
                   text: "\U000F14DE"
             on_focus:
@@ -662,21 +670,12 @@ lvgl:
                   id: selected_preset_label
                   text: "Boost"
             on_press:
-              - if:
-                  condition:
-                    lambda: 'return strcmp(id(preset_mode).state.c_str(), "boost") == 0;'
-                  then:
-                    - homeassistant.action:
-                        action: climate.set_preset_mode
-                        data:
-                          entity_id: ${climate_entity}
-                          preset_mode: "none"
-                  else:
-                    - homeassistant.action:
-                        action: climate.set_preset_mode
-                        data:
-                          entity_id: ${climate_entity}
-                          preset_mode: "boost"
+              # Toggle the HA input_boolean; subscription will update the UI color.
+              - homeassistant.service:
+                  service: input_boolean.toggle
+                  data:
+                    entity_id: ${boost_input_boolean}
+              - script.execute: update_boost_timer_label
               - script.execute: goto_main_page
 
 script:
@@ -783,6 +782,7 @@ script:
   # preset mode UI scripts
   - id: set_preset_none
     then:
+      - logger.log: "UI: set_preset_none executed"
       - lvgl.label.update:
           id: menu_preset_button_label
           text_color: white
@@ -796,6 +796,10 @@ script:
       - lvgl.widget.update:
           id: preset_boost_button
           text_color: white
+      - lvgl.label.update:
+          id: preset_boost_button_label    # ensure the icon/label is white
+          text_color: white
+
   - id: set_preset_eco
     then:
       - lvgl.label.update:
@@ -828,6 +832,7 @@ script:
           text_color: white
   - id: set_preset_boost
     then:
+      - logger.log: "UI: set_preset_boost executed"
       - lvgl.label.update:
           id: menu_preset_button_label
           text_color: red
@@ -840,6 +845,9 @@ script:
           text_color: white
       - lvgl.widget.update:
           id: preset_boost_button
+          text_color: red
+      - lvgl.label.update:
+          id: preset_boost_button_label    # ensure the icon/label is red
           text_color: red
 
   # OFF mode weather UI scripts
@@ -876,6 +884,7 @@ script:
         - set_temp_roller
         - celsius_label
         - current_temp_label
+        - boost_timer_label       # <-- ensure boost label is shown on main-page widget show
         - meter_ticks
         - mode_label
       - lvgl.widget.hide:
@@ -896,7 +905,7 @@ script:
         - set_temp_roller
         - celsius_label
         - current_temp_label
-
+        - boost_timer_label       # <-- hide boost label when weather view is shown
         - meter_ticks
         - mode_label
       - lvgl.widget.show:
@@ -910,3 +919,78 @@ script:
       - lvgl.indicator.update:
           id: diff_temp_arc
           opa: TRANSP
+  - id: update_boost_timer_label
+    then:
+      - lvgl.label.update:
+          id: boost_timer_label
+          text: !lambda |-
+            // read finishes_at directly from the HA-backed sensor state
+            std::string s = id(boost_timer_finishes_at).state;
+            if (s.size() < 19) return std::string(""); // no timer -> empty
+
+            int Y=0, Mo=0, D=0, h=0, m=0, sec=0;
+            std::string dtpart = s.substr(0, 19); // "YYYY-MM-DDTHH:MM:SS"
+            if (sscanf(dtpart.c_str(), "%d-%d-%dT%d:%d:%d", &Y, &Mo, &D, &h, &m, &sec) != 6) return std::string("");
+
+            // parse explicit timezone offset in finishes_at (seconds), default 0 for 'Z' or absent
+            int tz_offset_seconds = 0;
+            size_t tzpos = std::string::npos;
+            for (size_t i = 19; i < s.size(); ++i) {
+              if (s[i] == 'Z' || s[i] == '+' || s[i] == '-') { tzpos = i; break; }
+            }
+            if (tzpos != std::string::npos) {
+              char tz = s[tzpos];
+              if (tz == 'Z') {
+                tz_offset_seconds = 0;
+              } else if (tz == '+' || tz == '-') {
+                int oh = 0, om = 0;
+                if (sscanf(s.c_str() + tzpos + 1, "%d:%d", &oh, &om) == 2) {
+                  tz_offset_seconds = oh * 3600 + om * 60;
+                  if (tz == '-') tz_offset_seconds = -tz_offset_seconds;
+                }
+              }
+            }
+
+            // days_from_civil -> days since 1970-01-01
+            auto days_from_civil = [](int y, int mo, int d) -> long long {
+              y -= mo <= 2;
+              const long long era = (y >= 0 ? y : y - 399) / 400;
+              const unsigned yoe = static_cast<unsigned>(y - era * 400);      // [0, 399]
+              const unsigned doy = (153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5 + d - 1; // [0, 365]
+              const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;     // [0, 146096]
+              return era * 146097 + static_cast<long long>(doe) - 719468;
+            };
+
+            long long finish_days = days_from_civil(Y, Mo, D);
+            long long dt_seconds = finish_days * 86400LL + (long long)h * 3600LL + (long long)m * 60LL + (long long)sec;
+            long long finish_utc = dt_seconds - (long long)tz_offset_seconds;
+
+            // HA "now" fields
+            auto now = id(hass_time).now();
+            long long now_days = days_from_civil(now.year, now.month, now.day_of_month);
+            long long now_local_epoch = now_days * 86400LL + (long long)now.hour * 3600LL + (long long)now.minute * 60LL + (long long)now.second;
+
+            // Try candidate offsets (-12h .. +14h) in 15-minute steps and pick one where finish_utc is in the future
+            const long long MAX_FUTURE = 7LL * 86400LL; // accept finishes within 7 days
+            bool found = false;
+            long long chosen_offset = 0;
+            for (int off_min = -12 * 60; off_min <= 14 * 60; off_min += 15) {
+              long long off_secs = (long long)off_min * 60LL;
+              long long now_utc_candidate = now_local_epoch - off_secs;
+              long long diff_candidate = finish_utc - now_utc_candidate;
+              if (diff_candidate > 0 && diff_candidate < MAX_FUTURE) {
+                chosen_offset = off_secs;
+                found = true;
+                break;
+              }
+            }
+            if (!found) return std::string(""); // couldn't infer => hide
+
+            long long now_utc = now_local_epoch - chosen_offset;
+            long long diff = finish_utc - now_utc;
+            if (diff <= 0) return std::string("");
+
+            int mins = static_cast<int>((diff + 59) / 60); // round up
+            char buf[32];
+            snprintf(buf, sizeof(buf), "Boosting for %d min", mins);
+            return std::string(buf);
