@@ -1,0 +1,44 @@
+esphome:
+  name: test-display
+  friendly_name: "Test Display"
+
+logger:
+
+# BOARD
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# DISPLAY
+spi:
+  clk_pin:
+    number: 12
+    allow_other_uses: true
+  mosi_pin:
+    number: 13
+    allow_other_uses: true
+
+display:
+  - platform: mipi_rgb
+    model: UEDX48480021-MD80ET
+    id: knob_display
+    pclk_inverted: false  # Override model default
+    auto_clear_enabled: true
+    show_test_card: true
+
+switch:
+  - name: "Backlight"
+    id: backlight
+    platform: gpio
+    pin: GPIO7
+    inverted: true
+    restore_mode: ALWAYS_ON
+
+external_components:
+  - source: github://esphome/esphome@2025.9.0
+    components: [ mipi_rgb, mipi, display ]

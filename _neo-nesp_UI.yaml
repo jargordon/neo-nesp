@@ -139,6 +139,9 @@ globals:
     type: std::string
 
 lvgl:
+  displays:
+    - screen  # Link LVGL to the display defined in neo-nesp.yaml
+  buffer_size: 50%  # Reduce from 100% to save memory
   encoders:
     enter_button: push_button
     sensor: rotary

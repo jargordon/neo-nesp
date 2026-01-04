@@ -1,5 +1,34 @@
 # VIEWESMART UEDX48480021-MD80ET Porting Notes
 
+## ⚠️ Known Issue (January 2026)
+**ESPHome 2025.12.4 has a display driver bug** - RGB LCD displays initialize successfully (all ST7701S SPI commands sent, backlight works) but the framebuffer never reaches the screen. 
+
+**Evidence**:
+- Hardware verified working (factory demo displayed on first power-up)
+- Perfect initialization logs (all commands successful)
+- Tested both `mipi_rgb` (pre-configured model) and `st7701s` (manual) platforms
+- Tried both PCLK polarities, multiple frequencies, SPI pin swaps
+- `show_test_card: true` never displays anything
+
+**GitHub Reference**: Issue #3254 shows this exact display working with PR #9892 (merged Sep 2025), suggesting a regression in 2025.12.x.
+
+**Status**: Waiting for ESPHome 2025.13.x or later release to retry. See `test-display.yaml` for minimal test configuration.
+
+---
+
+## Development Workflow
+
+To build/flash ESPHome configs:
+
+```bash
+cd ~
+source ./venv/bin/activate
+cd /home/james/Documents/GitRepos/neo-nesp
+esphome run test-display.yaml  # or neo-nesp.yaml
+```
+
+---
+
 ## Hardware Comparison
 
 ### Display Specifications

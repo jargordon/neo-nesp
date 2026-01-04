@@ -31,8 +31,8 @@ ota:
 # disable UART logging
 logger:
   level: DEBUG
-  baud_rate: 0
-  #baud_rate: 115200
+  #baud_rate: 0
+  baud_rate: 115200
 
 preferences:
   flash_write_interval: 30min
