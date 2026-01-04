@@ -679,14 +679,15 @@ lvgl:
               - script.execute: goto_main_page
 
 script:
-  - id: vibrate
-    parameters:
-      length_ms: int
-    then:
-      # XXX doesn't delay properly for short lengths (10-100ms)
-      - switch.turn_on: vibration
-      - delay: !lambda return length_ms;
-      - switch.turn_off: vibration
+  ### VIBRATION MOTOR SCRIPT (disabled - no vibration motor on VIEWESMART)
+  # - id: vibrate
+  #   parameters:
+  #     length_ms: int
+  #   then:
+  #     # XXX doesn't delay properly for short lengths (10-100ms)
+  #     - switch.turn_on: vibration
+  #     - delay: !lambda return length_ms;
+  #     - switch.turn_off: vibration
   
   # Idle screen timeout: turn off backlight after 10 minutes of inactivity
   - id: idle_screen_timer
