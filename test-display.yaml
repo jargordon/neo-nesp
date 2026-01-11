@@ -9,13 +9,22 @@ esp32:
   board: esp32-s3-devkitc-1
   framework:
     type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"  # Increase watchdog timeout for display init
 
 psram:
   mode: octal
   speed: 80MHz
 
-# DISPLAY
+# Custom component for UEDX48480021-MD80ET display
+external_components:
+  - source:
+      type: local
+      path: components
+
+# DISPLAY - Using custom component with proper SPI/RGB pin sharing
 spi:
+  id: spi_bus
   clk_pin:
     number: 12
     allow_other_uses: true
@@ -24,21 +33,32 @@ spi:
     allow_other_uses: true
 
 display:
-  - platform: mipi_rgb
-    model: UEDX48480021-MD80ET
+  - platform: uedx48480021
     id: knob_display
-    pclk_inverted: false  # Override model default
-    auto_clear_enabled: true
-    show_test_card: true
+    spi_id: spi_bus
+    cs_pin: 18  # CS pin for ST7701S SPI initialization
+    reset_pin: 8
+    de_pin: 17
+    hsync_pin: 46
+    vsync_pin: 3
+    pclk_pin: 9
+    backlight_pin:
+      number: 7
+      inverted: true  # Try inverted polarity
+    data_pins:
+      red: [40, 41, 42, 2, 1]
+      green: [39, 38, 45, 48, 47, 21]
+      blue:
+        - 10
+        - 11
+        - number: 12
+          allow_other_uses: true
+        - number: 13
+          allow_other_uses: true
+        - 14
+    update_interval: 1s
+    lambda: |-
+      // Test pattern - red screen
+      it.fill(Color(254, 0, 0));
 
-switch:
-  - name: "Backlight"
-    id: backlight
-    platform: gpio
-    pin: GPIO7
-    inverted: true
-    restore_mode: ALWAYS_ON
 
-external_components:
-  - source: github://esphome/esphome@2025.9.0
-    components: [ mipi_rgb, mipi, display ]

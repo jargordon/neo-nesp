@@ -13,6 +13,7 @@
 **GitHub Reference**: Issue #3254 shows this exact display working with PR #9892 (merged Sep 2025), suggesting a regression in 2025.12.x.
 
 **Status**: Waiting for ESPHome 2025.13.x or later release to retry. See `test-display.yaml` for minimal test configuration.
+Raised issue - https://github.com/esphome/esphome/issues/13140
 
 ---
 
